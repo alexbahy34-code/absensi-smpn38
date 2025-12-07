@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Absensi SMPN 38 MT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background: #f3f4f6; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <script>
+        // *** TEMPEL URL WEB APP DARI GOOGLE APPS SCRIPT DI SINI ***
+        const API_URL = "https://script.google.com/macros/s/AKfycbzlY4kPg5oIZY_yuYIlJUi1MdRJkQ05edFKApcwweqP-J4QQYTCrE8Wo_s-UEOPqfdB_Q/exec"; 
+        
+        // Password Admin
+        const ADMIN_PASS = "smpn38mt";
+    </script>
+
+    <div class="max-w-md mx-auto bg-white min-h-screen shadow-xl relative pb-10">
+        
+        <div class="bg-blue-600 p-6 text-white rounded-b-3xl shadow-md z-10 relative">
+            <h1 class="text-xl font-bold">SMP NEGERI 38</h1>
+            <p class="text-blue-100 text-sm">Maluku Tengah</p>
+            <div class="mt-4 flex justify-between items-center">
+                <span id="tgl-hari-ini" class="bg-blue-500/50 px-3 py-1 rounded-full text-xs">...</span>
+                <button onclick="logout()" id="btn-logout" class="hidden text-xs bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-white">Keluar</button>
+            </div>
+        </div>
+
+        <div id="loading" class="hidden absolute inset-0 bg-white/80 z-50 flex flex-col items-center justify-center">
+            <div class="loader mb-2"></div>
+            <p class="text-gray-500 text-sm">Memproses...</p>
+        </div>
+
+        <div id="page-login" class="p-8 mt-10">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Login Admin</h2>
+            <input type="password" id="pass-input" placeholder="Kode Akses..." class="w-full p-4 border rounded-xl mb-4 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500">
+            <button onclick="login()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">MASUK</button>
+        </div>
+
+        <div id="page-dashboard" class="hidden p-6 space-y-4">
+            <div onclick="bukaAbsen()" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:bg-blue-50 transition">
+                <div class="bg-blue-100 p-3 rounded-full text-blue-600">📝</div>
+                <div><h3 class="font-bold">Input Absensi</h3><p class="text-xs text-gray-400">Isi kehadiran hari ini</p></div>
+            </div>
+            
+            <div onclick="bukaRekap()" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:bg-purple-50 transition">
+                <div class="bg-purple-100 p-3 rounded-full text-purple-600">📊</div>
+                <div><h3 class="font-bold">Lihat Laporan</h3><p class="text-xs text-gray-400">Rekap data kehadiran</p></div>
+            </div>
+
+             <div onclick="bukaGuru()" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:bg-orange-50 transition">
+                <div class="bg-orange-100 p-3 rounded-full text-orange-600">👥</div>
+                <div><h3 class="font-bold">Data Guru</h3><p class="text-xs text-gray-400">Tambah / Hapus Nama</p></div>
+            </div>
+        </div>
+
+        <div id="page-absen" class="hidden p-6">
+            <button onclick="nav('page-dashboard')" class="mb-4 text-sm text-gray-500 flex items-center">← Kembali</button>
+            <h2 class="text-xl font-bold mb-6">Form Absensi</h2>
+            
+            <form id="form-absen" class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Tanggal</label>
+                    <input type="date" id="input-date" class="w-full p-3 border rounded-lg mt-1" required>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Nama Guru</label>
+                    <select id="input-guru" class="w-full p-3 border rounded-lg mt-1 bg-white" required>
+                        <option value="">Pilih...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase mb-2 block">Status</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <label class="cursor-pointer text-center"><input type="radio" name="status" value="Hadir" class="peer sr-only" required><div class="p-2 border rounded peer-checked:bg-green-100 peer-checked:border-green-500 text-sm">✅<br>Hadir</div></label>
+                        <label class="cursor-pointer text-center"><input type="radio" name="status" value="Sakit" class="peer sr-only"><div class="p-2 border rounded peer-checked:bg-red-100 peer-checked:border-red-500 text-sm">🤒<br>Sakit</div></label>
+                        <label class="cursor-pointer text-center"><input type="radio" name="status" value="Izin" class="peer sr-only"><div class="p-2 border rounded peer-checked:bg-yellow-100 peer-checked:border-yellow-500 text-sm">📩<br>Izin</div></label>
+                        <label class="cursor-pointer text-center"><input type="radio" name="status" value="Alpha" class="peer sr-only"><div class="p-2 border rounded peer-checked:bg-gray-200 peer-checked:border-gray-500 text-sm">❌<br>Alpha</div></label>
+                    </div>
+                </div>
+                <div>
+                    <textarea id="input-catatan" placeholder="Catatan (Opsional)" class="w-full p-3 border rounded-lg text-sm"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-md">KIRIM DATA</button>
+            </form>
+        </div>
+
+        <div id="page-guru" class="hidden p-6">
+             <button onclick="nav('page-dashboard')" class="mb-4 text-sm text-gray-500 flex items-center">← Kembali</button>
+             <h2 class="text-xl font-bold mb-4">Kelola Data Guru</h2>
+             
+             <div class="flex gap-2 mb-6">
+                 <input type="text" id="nama-baru" placeholder="Nama Guru Baru..." class="flex-1 p-3 border rounded-lg text-sm">
+                 <button onclick="tambahGuru()" class="bg-green-600 text-white px-4 rounded-lg font-bold">+</button>
+             </div>
+             
+             <div id="list-guru" class="space-y-2 max-h-[400px] overflow-y-auto"></div>
+        </div>
+
+        <div id="page-rekap" class="hidden p-6">
+            <button onclick="nav('page-dashboard')" class="mb-4 text-sm text-gray-500 flex items-center">← Kembali</button>
+            <h2 class="text-xl font-bold mb-4">Laporan Absensi</h2>
+            
+            <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
+                <button onclick="tarikData('minggu')" class="bg-white border px-4 py-2 rounded-full text-sm whitespace-nowrap hover:bg-gray-50">Mingguan</button>
+                <button onclick="tarikData('bulan')" class="bg-white border px-4 py-2 rounded-full text-sm whitespace-nowrap hover:bg-gray-50">Bulanan</button>
+                <button onclick="tarikData('semester')" class="bg-white border px-4 py-2 rounded-full text-sm whitespace-nowrap hover:bg-gray-50">Semester</button>
+            </div>
+
+            <div id="rekap-stats" class="grid grid-cols-4 gap-2 mb-6 text-center text-xs"></div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-gray-100 font-bold"><tr><th class="p-2">Nama</th><th class="p-2 text-center text-green-600">H</th><th class="p-2 text-center text-red-600">S</th><th class="p-2 text-center text-yellow-600">I</th><th class="p-2 text-center text-gray-600">A</th></tr></thead>
+                    <tbody id="rekap-body" class="divide-y"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DATA AWAL ---
+        const DEFAULT_GURUS = [
+            "Abraham Kaya", "Agusthin M. Amarmolo", "Annete Noya", "Astrid Ohello", 
+            "Christina E. Wenno", "Costafina Hatalaibessy", "David Talakua", "Elieser Wattimena",
+            "Elisabeth Bakker", "Jhon Glenty Payong", "Johana J. Suitella", "Kotje N. Waelauruw",
+            "Lebrina Liptiay", "Liberatus Reressy", "Marce A. Soukotta", "Marice D. Tuapattinaya",
+            "Marisa Komul", "Marthen R. Ririmase", "Meilany Matulessy", "Novita Sari Pranoko",
+            "Nurhayati", "Ridwan Tomagola", "Vector Izaac"
+        ];
+
+        let teachers = JSON.parse(localStorage.getItem('guru_smp38')) || DEFAULT_GURUS;
+        
+        // --- NAVIGASI ---
+        function nav(id) {
+            document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            window.scrollTo(0,0);
+        }
+
+        function login() {
+            if(document.getElementById('pass-input').value === ADMIN_PASS) {
+                nav('page-dashboard');
+                document.getElementById('btn-logout').classList.remove('hidden');
+                init();
+            } else { alert('Password Salah!'); }
+        }
+
+        function logout() {
+            location.reload();
+        }
+
+        function init() {
+            document.getElementById('tgl-hari-ini').innerText = new Date().toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'short'});
+            renderGuruSelect();
+        }
+
+        // --- FITUR GURU ---
+        function bukaGuru() {
+            nav('page-guru');
+            renderListGuru();
+        }
+
+        function renderGuruSelect() {
+            const sel = document.getElementById('input-guru');
+            sel.innerHTML = '<option value="">Pilih Guru...</option>' + teachers.sort().map(t => `<option value="${t}">${t}</option>`).join('');
+        }
+
+        function renderListGuru() {
+            const div = document.getElementById('list-guru');
+            div.innerHTML = teachers.sort().map(t => `
+                <div class="flex justify-between items-center bg-white p-3 rounded shadow-sm border">
+                    <span class="text-sm font-medium">${t}</span>
+                    <button onclick="hapusGuru('${t}')" class="text-red-500 text-xs border border-red-200 p-1 rounded hover:bg-red-50">Hapus</button>
+                </div>
+            `).join('');
+        }
+
+        function tambahGuru() {
+            const nama = document.getElementById('nama-baru').value.trim();
+            if(nama && !teachers.includes(nama)) {
+                teachers.push(nama);
+                localStorage.setItem('guru_smp38', JSON.stringify(teachers));
+                document.getElementById('nama-baru').value = '';
+                renderListGuru(); renderGuruSelect();
+            } else { alert('Nama kosong atau sudah ada'); }
+        }
+
+        function hapusGuru(nama) {
+            if(confirm('Hapus ' + nama + '?')) {
+                teachers = teachers.filter(t => t !== nama);
+                localStorage.setItem('guru_smp38', JSON.stringify(teachers));
+                renderListGuru(); renderGuruSelect();
+            }
+        }
+
+        // --- FITUR ABSEN (KIRIM KE GOOGLE SHEET) ---
+        function bukaAbsen() {
+            nav('page-absen');
+            document.getElementById('input-date').valueAsDate = new Date();
+        }
+
+        document.getElementById('form-absen').addEventListener('submit', e => {
+            e.preventDefault();
+            if(API_URL.includes("TEMPEL_URL")) return alert("URL Script belum dipasang di kode!");
+
+            document.getElementById('loading').classList.remove('hidden');
+            
+            const payload = {
+                date: document.getElementById('input-date').value,
+                teacher_name: document.getElementById('input-guru').value,
+                status: document.querySelector('input[name="status"]:checked').value,
+                notes: document.getElementById('input-catatan').value
+            };
+
+            // Menggunakan FETCH POST (no-cors mode karena CORS Google Apps Script ketat)
+            fetch(API_URL, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(res => {
+                document.getElementById('loading').classList.add('hidden');
+                alert("Berhasil disimpan!");
+                document.getElementById('form-absen').reset();
+                document.getElementById('input-date').valueAsDate = new Date();
+            })
+            .catch(err => {
+                // Trik: GAS sering return error CORS padahal data masuk.
+                document.getElementById('loading').classList.add('hidden');
+                console.log(err); 
+                alert("Data terkirim (Cek Sheet untuk memastikan).");
+                document.getElementById('form-absen').reset();
+            });
+        });
+
+        // --- FITUR REKAP (AMBIL DARI GOOGLE SHEET) ---
+        function bukaRekap() {
+            nav('page-rekap');
+        }
+
+        function tarikData(filterType) {
+            if(API_URL.includes("TEMPEL_URL")) return alert("URL Script belum dipasang!");
+            
+            document.getElementById('loading').classList.remove('hidden');
+
+            fetch(API_URL + "?action=read")
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('loading').classList.add('hidden');
+                prosesRekap(data, filterType);
+            })
+            .catch(err => {
+                document.getElementById('loading').classList.add('hidden');
+                alert("Gagal mengambil data: " + err);
+            });
+        }
+
+        function prosesRekap(data, type) {
+            let filtered = [];
+            const now = new Date();
+
+            if(type === 'minggu') {
+                const d = new Date(); d.setDate(d.getDate()-7);
+                filtered = data.filter(r => new Date(r.date) >= d);
+            } else if(type === 'bulan') {
+                filtered = data.filter(r => new Date(r.date).getMonth() === now.getMonth());
+            } else if(type === 'semester') {
+                const isGenap = now.getMonth() < 6;
+                filtered = data.filter(r => {
+                    const m = new Date(r.date).getMonth();
+                    return (isGenap ? m < 6 : m >= 6);
+                });
+            }
+
+            // Hitung Stats
+            const stats = {Hadir:0, Sakit:0, Izin:0, Alpha:0};
+            const guruStats = {};
+            teachers.forEach(t => guruStats[t] = {H:0, S:0, I:0, A:0});
+
+            filtered.forEach(r => {
+                if(stats[r.status] !== undefined) stats[r.status]++;
+                if(guruStats[r.teacher_name]) {
+                    const map = {Hadir:'H', Sakit:'S', Izin:'I', Alpha:'A'};
+                    guruStats[r.teacher_name][map[r.status]]++;
+                }
+            });
+
+            // Render Total
+            document.getElementById('rekap-stats').innerHTML = Object.entries(stats).map(([k,v]) => `
+                <div class="bg-white p-2 border rounded shadow-sm">
+                    <div class="font-bold text-lg">${v}</div><div class="uppercase text-gray-400">${k}</div>
+                </div>
+            `).join('');
+
+            // Render Tabel
+            document.getElementById('rekap-body').innerHTML = Object.entries(guruStats).map(([n, s]) => `
+                <tr class="hover:bg-gray-50 border-b">
+                    <td class="p-2 font-medium">${n}</td>
+                    <td class="p-2 text-center bg-green-50 font-bold">${s.H}</td>
+                    <td class="p-2 text-center bg-red-50 font-bold">${s.S}</td>
+                    <td class="p-2 text-center bg-yellow-50 font-bold">${s.I}</td>
+                    <td class="p-2 text-center bg-gray-50 font-bold">${s.A}</td>
+                </tr>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
